@@ -1,0 +1,191 @@
+---
+title: "Amgen_data"
+author: "Kalyan Srivastava"
+date: "4/5/2021"
+output: html_document
+---
+
+
+```{r warning=FALSE, echo = FALSE}
+rm(list = ls(all = TRUE))
+require(dplyr)
+require(ggplot2)
+library(tidyr)
+library(ggpubr)
+library(doFuture)
+library(DT)
+
+```
+#Importing the data
+
+```{r warning=FALSE, echo = FALSE}
+setwd("~/Desktop")
+
+setwd("~/Desktop/clinical_sets")
+data <- read.csv("data.csv")
+
+datatable(data, class = 'cell-border stripe', colnames = c('Subjects', 'Collection_Time', 'Count', 'Immune_Marker', 'Therapy_Given'))
+summary(data)
+
+fact <- factor(data$Collection_Time)
+factList <- levels(fact)
+
+cat("The times point of observations are :\t", factList )
+```
+### Please provide a version of this graph with each subject’s digital_count connected by a line, and a unique shape and color for each subject
+
+```{r warning=FALSE, echo = FALSE}
+
+data$Collection_Time <- factor(data$Collection_Time, levels=c("day1","day8", "day15", "day22", "day29"))
+good.shapes = c(1:25,33:127)
+
+ggplot(data[data$Immune_Marker == "CD4",], aes(x=Collection_Time, y=Count, group=Subjects, color=Subjects, shape = Subjects)) +
+     geom_line(linetype = "dotted")+
+     geom_point() + 
+     scale_shape_manual(values=good.shapes[1:21]) +labs(title="Plot with marker CD4", x ="Time", y = "Count")
+
+ggplot(data[data$Immune_Marker == "CD8",], aes(x=Collection_Time, y=Count, group=Subjects, color=Subjects, shape = Subjects)) +
+     geom_line(linetype = "dotted")+
+     geom_point() + 
+     scale_shape_manual(values=good.shapes[1:21]) +labs(title="Plot with marker CD8", x ="Time", y = "Count")
+
+ggplot(data[data$Immune_Marker == "TLR2",], aes(x=Collection_Time, y=Count, group=Subjects, color=Subjects, shape = Subjects)) +
+     geom_line(linetype = "dotted")+
+     geom_point() + 
+     scale_shape_manual(values=good.shapes[1:21]) +labs(title="Plot with marker TLR2", x ="Time", y = "Count")
+```
+```{r warning=FALSE, echo = FALSE}
+```
+### Please provide a version of this graph as Mean ± SD with each treatment group’s mean connected by a line, and a unique shape and color for each treatment group
+```{r warning=FALSE, echo = FALSE}
+dataTA <- data[data$Therapy_Given == "TreatType1",]
+dataTB <- data[data$Therapy_Given == "TreatType2",]
+dataTC <- data[data$Therapy_Given == "TreatType3",]
+
+aggregateTA <- aggregate(dataTA$Count, list(Marker = dataTA$Immune_Marker, Time = dataTA$Collection_Time), mean)
+aggregateTB <- aggregate(dataTB$Count, list(Marker = dataTB$Immune_Marker, Time = dataTB$Collection_Time), mean)
+aggregateTC <- aggregate(dataTC$Count, list(Marker = dataTC$Immune_Marker, Time = dataTC$Collection_Time), mean)
+
+ggplot(aggregateTA, aes(x=Time, y=x, group=Marker, color=Marker, shape = Marker)) +
+    geom_line(linetype = "dotted")+
+    geom_point() + 
+    scale_shape_manual(values=good.shapes[1:21]) +labs(title="Plot with marker TreatType1", x ="Time", y = "Mean")
+    
+ggplot(aggregateTB, aes(x=Time, y=x, group=Marker, color=Marker, shape = Marker)) +
+    geom_line(linetype = "dotted")+
+    geom_point() + 
+    scale_shape_manual(values=good.shapes[1:21]) +labs(title="Plot with marker TreatType2", x ="Time", y = "Mean")
+    
+ggplot(aggregateTC, aes(x=Time, y=x, group=Marker, color=Marker, shape = Marker)) +
+    geom_line(linetype = "dotted")+
+    geom_point() + 
+    scale_shape_manual(values=good.shapes[1:21]) +labs(title="Plot with marker TreatType3", x ="Time", y = "Mean")
+
+
+```
+### Please convert the input data table to another table in which each sample_time become a separate column filled with corresponding digital counts and other columns remain
+```{r warning=FALSE, echo = FALSE}
+
+dfW <- spread(data, Collection_Time, Count)
+
+datatable(dfW, class = 'cell-border stripe')
+ 
+```
+### Please test for each marker whether Day 8 and Day 1 differs at alpha = 0.05 under each treatment
+
+```{r warning=FALSE, echo = FALSE}
+x1 = data[data$Immune_Marker == "CD4" & data$Collection_Time == "day1",]$Count
+x2 = data[data$Immune_Marker == "CD4" & data$Collection_Time == "day8",]$Count
+x3 = data[data$Immune_Marker == "CD8" & data$Collection_Time == "day1",]$Count
+x4 = data[data$Immune_Marker == "CD8" & data$Collection_Time == "day8",]$Count
+x5 = data[data$Immune_Marker == "TLR2" & data$Collection_Time == "day1",]$Count
+x6 = data[data$Immune_Marker == "TLR2" & data$Collection_Time == "day8",]$Count
+res1 <- t.test(x1, x2, alternative = c("two.sided"), mu = 0, paired = FALSE, conf.level = 0.95)
+cat("The p value for marker CD4 is:\t", res1$p.value)
+res2 <- t.test(x3, x4, alternative = c("two.sided"), mu = 0, paired = FALSE, conf.level = 0.95)
+cat("The p value for marker CD8 is:\t", res2$p.value)
+res3 <- t.test(x5, x6, alternative = c("two.sided"), mu = 0, paired = FALSE, conf.level = 0.95)
+cat("The p value for marker TLR2 is:\t", res3$p.value)
+```
+
+
+### Please fit an approriate statistical model for each marker with digital_count as dependent variables, and sample_time and treatment as independent variables (both are conisidered factors). Assume sbj are randomly drawn from a population. With each model, please report the significance of treatment effect and the contrast between Day 22 and Day 8
+```{r warning=FALSE, echo = FALSE}
+ggboxplot(data, x = "Collection_Time", y = "Count", color = "Therapy_Given")
+
+dF8 <- data[data$Collection_Time=="day8",]
+dF22 <- data[data$Collection_Time=="day22",]
+df8_22 <- rbind(dF8, dF22)
+res.aov2 <- aov(Count ~Therapy_Given + Collection_Time, data = df8_22)
+summary(res.aov2)
+
+```
+### If you had to analyze 1 million markers, how would you parallelize the tests from question 4 on a multi-processor machine? Please demonstrate this parallelization method using just the markers available in the spreadsheet
+```{r warning=FALSE, echo = FALSE}
+print("without parallelizing")
+factMarker <- factor(data$Immune_Marker)# This could be millions, but DAYs are fixed
+factMarkerList <- levels(factMarker)
+
+for (val in factMarkerList) {
+    xA = data[data$Immune_Marker == val & data$Collection_Time == "day1",]$Count
+    xB = data[data$Immune_Marker == val & data$Collection_Time == "day8",]$Count
+    tTester <- t.test(xA, xB, alternative = c("two.sided"), mu = 0, paired = FALSE, conf.level = 0.95)
+    print(tTester)
+    
+}
+
+
+print("with parallelizing")
+
+registerDoFuture()
+plan(multiprocess)
+
+factMarker <- factor(data$Immune_Marker)
+factMarkerList <- levels(factMarker)
+
+y <- foreach(val = factMarkerList) %dopar% {
+    xA = data[data$Immune_Marker == val & data$Collection_Time == "day1",]$Count
+    xB = data[data$Immune_Marker == val & data$Collection_Time == "day8",]$Count
+    tTester <- t.test(xA, xB, alternative = c("two.sided"), mu = 0, paired = FALSE, conf.level = 0.95)
+    print(tTester)
+}
+
+```
+### Please automate the table view for different layouts, i.e., write a function that takes the input data and another parameter indicating a categorical (nominal) variable so that the output of this function will produce a new table in which each level of the indicated variable become a separate column filled with corresponding digital_counts and others columns remain. In the data provided for the quiz, except "digital_count", all other variables are factors
+```{r warning=FALSE, echo = FALSE}
+library(tidyr)
+
+new.function <- function(varX, dataX) {
+  
+  if (varX == "Immune_Marker "){
+    TableX <- dataX %>% tidyr::spread(Immune_Marker , Count)
+    TableT<- datatable(TableX, class = 'cell-border stripe')
+    TableT
+  }
+  else if (varX == "Therapy_Given"){
+    TableX <- dataX %>% tidyr::spread(Therapy_Given, Count)
+    TableU<- datatable(TableX, class = 'cell-border stripe')
+    TableU
+  }
+  else if (varX == "Collection_Time "){
+    TableX <- dataX %>% tidyr::spread(Collection_Time , Count)
+    TableV<- datatable(TableX, class = 'cell-border stripe')
+    TableV
+  }
+  else if (varX == "Subject"){
+    TableX <- dataX %>% tidyr::spread(Subject, Count)
+    TableW<- datatable(TableX, class = 'cell-border stripe')
+    TableW
+  }                                                                                                                                                                                                                                                
+  else if (varX == "Collection_Time "){
+    TableX <- dataX %>% tidyr::spread(Subject, Count)
+    TableY<- datatable(TableX, class = 'cell-border stripe')
+    TableY
+  }
+  else  print ("Sorry! Dont know that value")
+}
+new.function("Immune_Marker ", data)
+```
+```{r warning=FALSE, echo = FALSE}
+sessionInfo()
+```
