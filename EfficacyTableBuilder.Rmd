@@ -1,0 +1,74 @@
+---
+title: "EfficacyTable"
+author: "Kalyan Srivastava"
+date: "2/16/2022"
+output: html_document
+---
+# Has been developed from the following link https://github.com/ddsjoberg/gtsummary
+#Other reference https://www.pharmasug.org/proceedings/2020/DV/PharmaSUG-2020-DV-057.pdf
+
+```{r setup, include=FALSE}
+rm(list = ls())
+library(gtsummary)
+library(DT)
+library(ggplot2)
+library(plotly)
+#library(flextable)
+#library(Rcmdr)
+#Call Rcmdr when and where it is required
+```
+```{r setup, include=FALSE}
+data("trial")
+trial %>%  glimpse()
+```
+```{r}
+library(gtsummary)
+# make dataset with a few variables to summarize
+trial2 <- trial %>% select(age, grade, response, trt)
+
+# summarize the data with our package
+table1 <- tbl_summary(trial2)
+table1
+```
+```{r}
+table2 <- 
+  tbl_summary(
+    trial2,
+    by = trt, # split table by group
+    missing = "no" # don't list missing data separately
+  ) %>%
+  add_n() %>% # add column with total number of non-missing observations
+  add_p() %>% # test for a difference between groups
+  modify_header(label = "**Variable**") %>% # update the column header
+  bold_labels() 
+table2
+```
+```{r}
+mod1 <- glm(response ~ trt + age + grade, trial, family = binomial)
+
+t1 <- tbl_regression(mod1, exponentiate = TRUE)
+t1
+```
+
+```{r}
+library(survival)
+
+# build survival model table
+t2 <-
+  coxph(Surv(ttdeath, death) ~ trt + grade + age, trial) %>%
+  tbl_regression(exponentiate = TRUE)
+
+# merge tables 
+tbl_merge_ex1 <-
+  tbl_merge(
+    tbls = list(t1, t2),
+    tab_spanner = c("**Tumor Response**", "**Time to Death**")
+  )
+tbl_merge_ex1 
+```
+```{r}
+tbl_merge_ex1  %>%
+  as_flex_table() %>%
+  flextable::save_as_docx()
+```
+

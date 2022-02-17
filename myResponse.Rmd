@@ -1,0 +1,85 @@
+---
+title: "MyResponse"
+author: "Kalyan Srivastava"
+date: "2/14/2022"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+```{r, echo=FALSE}
+rm(list = ls())
+library(dplyr)
+library(DT)
+library(readxl)
+```
+```{r "Reading ADSL data", echo=FALSE}
+dfADSL <- readxl::read_excel('/home/srivastava/Documents/DataSetDRT/lu97736nfd9ta.tmp.xlsm')
+dfADSL %>% glimpse()
+
+```
+
+
+```{r "Reading ADAE data", echo=FALSE}
+dfADAE <- readxl::read_excel('/home/srivastava/Documents/DataSetDRT/lu97736nfd9tj.tmp.xlsm')
+dfADAE %>% glimpse()
+
+```
+
+```{r "Reading ADLB data", echo=FALSE}
+dfADLB <- readxl::read_excel('/home/srivastava/Documents/DataSetDRT/lu97736nfd9tr.tmp.xlsm')
+dfADLB %>% glimpse()
+
+```
+
+```{r "Queston1", echo=FALSE}
+#What is the total number of subjects enrolled in the trial and how many subjects are randomized in the study drug arm (Valix 20mg) and placebo arm? 
+
+number_of_subjects_enrolled <- dfADSL$USUBJID %>% length() %>% unique() 
+print(paste("Total number of subject enrolled were", number_of_subjects_enrolled))
+
+subjects_factored <- dfADSL$ARM %>% factor() %>% table()
+print(paste("Values for placbo", subjects_factored[1], "and Value for Valix",subjects_factored[2]))
+
+
+```
+
+```{r "Question 2", echo=FALSE}
+#What percentage of the total study population experienced the adverse event of diarrhoea and what percentage of subjects in the Valix 20mg and Placebo arms experienced diarrhoea, respectively? 
+
+queryDF1 <- dfADAE[grepl("Diarr", dfADAE$AEDECOD), ignore.case = T] 
+
+total_dia <- queryDF1 %>% nrow() #Assuming rest of the "diarrhoea" could be misspelled and upper/lower case does not matter
+
+pc_tot_dia <- total_dia/number_of_subjects_enrolled *100
+
+print(paste("Percent of people from total population with diarrhoea", round(pc_tot_dia, 2), "%"))
+
+x  <- grepl("Valix", queryDF1$ARM, ignore.case = T) #Queries all Valix 20 mg plus diarrhoea 
+pc_val_dia <- length(x[x== TRUE])/number_of_subjects_enrolled *100
+print(paste("Percent of people from total population on Valix with diarrhoea", round(pc_val_dia, 2), "%"))
+
+y  <- grepl("Placebo", queryDF1$ARM, ignore.case = T) #Queries all Placebo plus diarrhoea 
+pc_pla_dia <- length(y[y== TRUE])/number_of_subjects_enrolled *100
+print(paste("Percent of people from total population on Placebo with diarrhoea", round(pc_pla_dia, 2), "%"))
+
+```
+
+```{r "Question 3", echo=FALSE}
+#How many subjects have a hemoglobin (g/L) value of less than 90 in the total study population? And what are their unique subject identifiers?
+queryDF2 <- dfADLB %>% filter(grepl('Hemog', PARAM, ignore.case = T), AVAL < 90) #Assuming hemoglobin can be misspleled if written completely and Hemog can query the "Hemoglobin (g/L)"
+
+print(paste("There are", queryDF2 %>% nrow(), "patients with hemoglobin level less that 90") )
+print("Their patient IDs are: "); print(queryDF2$USUBJID)
+```
+```{r "Question 4", echo=FALSE}
+#Optional: Please provide the subject identifiers with their demographic information (SEX, AGE, RACE), for subjects who had severe hyperglycemia (blood glucose level of over 250 mg/dL) at baseline.
+
+queryDF3  <- dfADLB %>% filter(grepl('Gluco', PARAM, ignore.case = T), AVAL * 18 > 250)# multiply with 18 to get mmol/L to mg/dl conversion
+listex <- queryDF3$USUBJID
+print("Please see the data tabe below for hyperglycemic patients: ")
+dfADSL[dfADSL$USUBJID %in% listex, c("USUBJID","SEX", "AGE", "RACE")] %>%  datatable()
+
+
+```
+
